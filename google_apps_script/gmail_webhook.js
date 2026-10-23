@@ -17,8 +17,8 @@ function checkRecentEmailsAndTrigger() {
   const lastCheck = parseInt(userProps.getProperty("LAST_CHECK_MS") || "0", 10);
   const nowMs = Date.now();
 
-  // Search recruitment emails from the last 1 day
-  const query = 'newer_than:1d (subject:application OR subject:interview OR subject:assessment OR from:jobs-noreply@linkedin.com)';
+  // Search recruitment emails from the last 1 day, explicitly excluding non-job documents
+  const query = 'newer_than:1d (subject:"job application" OR subject:"interview" OR subject:"assessment" OR subject:"candidacy" OR subject:"application was sent" OR from:jobs-noreply@linkedin.com OR from:myworkday.com) -subject:PAN -subject:Passport -subject:Verification -subject:"Study Abroad" -subject:"IIT Madras" -from:glassdoor.com';
   const threads = GmailApp.search(query, 0, 15);
 
   let newEmailFound = false;

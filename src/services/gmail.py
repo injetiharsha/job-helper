@@ -12,17 +12,40 @@ from src.parsers.lifecycle_classifier import LifecycleClassifier
 from src.parsers.deadline_parser import DeadlineParser
 from src.core.stages import HiringStage
 
+# Senders and domains that must NEVER be ingested as employers
+EXCLUDE_DOMAINS = [
+    'passportindia.gov.in', 'proteantech.in', 'protean', 'incometax.gov.in',
+    'uidai.gov.in', 'glassdoor.com', 'glassdoor', 'galvanize', 'cdac.in',
+    'mail.amazon.jobs', 'amazon.jobs', 'accounts.google.com', 'ads-noreply@google.com',
+    'udayaharsha13@gmail.com'
+]
+
+# Patterns in Subject or From that indicate non-job emails, newsletters, identity documents, or security
 EXCLUDE_PATTERNS = [
-    r'security code', r'one-time-passcode', r'verification code', r'verify your',
-    r'password reset', r'new job opportunities', r'jobs at ', r'job alert',
-    r'recommended jobs', r'pending tasks', r'complete your application',
-    r'survey request', r'talent acquisition survey', r'confirm your email', r'2fa',
-    r'top jobs', r'job search', r'job suggestions', r'is hiring', r'potential match',
-    r'jobs applied by your', r'your account has been created', r'sign in code',
-    r'digital talent newsletter', r'newsletter', r'experience at ntt',
-    r'have you completed your candidate home', r'new jobs posted from',
-    r'invitation to join', r'status they never', r'talent community',
-    r'nvidia x ytu', r'join our talent community', r'weekly alert', r'sign-in code'
+    # Government, Identity, Tax, Police Verification
+    r'pan\s+application', r'intimation\s+of\s+pan', r'police\s+verification',
+    r'passport\s+application', r'passportindia', r'income\s+tax', r'aadhaar',
+    r'protean', r'form\s+16',
+    
+    # Academic, College, Study Abroad
+    r'study\s+abroad', r'bs\s+degree', r'degree\s+application', r'iit\s+madras',
+    r'galvanize\s+global', r'admissions?', r'scholarship',
+
+    # Aggregators, Alerts, Newsletters, Marketing
+    r'glassdoor', r'job\s+alert', r'saved\s+job', r'recommended\s+jobs',
+    r'top\s+jobs\s+for\s+you', r'new\s+jobs\s+posted', r'interview\s+experiences',
+    r'newsletter', r'digital\s+talent', r'weekly\s+alert', r'talent\s+community',
+    r'join\s+our\s+talent', r'is\s+hiring', r'potential\s+match', r'jobs\s+at\s+',
+    r'job\s+suggestions', r'job\s+search', r'experience\s+at\s+ntt',
+    
+    # Account & Security verification
+    r'security\s+code', r'one-time-passcode', r'verification\s+code', r'verify\s+your',
+    r'password\s+reset', r'confirm\s+your\s+email', r'2fa', r'sign[- ]in\s+code',
+    r'survey\s+request', r'talent\s+acquisition\s+survey', r'your\s+account\s+has\s+been\s+created',
+    r'have\s+you\s+completed\s+your\s+candidate\s+home',
+    
+    # Application Withdrawn
+    r'withdrawn\s+your\s+.*application', r'withdrew\s+your\s+application'
 ]
 
 class GmailClient:
@@ -90,8 +113,16 @@ class GmailClient:
                     from_h = curr_headers.get('from', '').strip()
                     date_raw = curr_headers.get('date', '')
 
-                    # Skip newsletters and security codes
-                    if any(re.search(pat, subj, re.I) for pat in EXCLUDE_PATTERNS):
+                    # 1. Skip if sender is blacklisted or user's own email
+                    from_low = from_h.lower()
+                    if any(d in from_low for d in EXCLUDE_DOMAINS):
+                        curr_headers = {}
+                        continue
+
+                    # 2. Skip if subject or sender matches non-job exclusion patterns
+                    subj_low = subj.lower()
+                    combined_headers = f"{subj_low} {from_low}"
+                    if any(re.search(pat, combined_headers, re.I) for pat in EXCLUDE_PATTERNS):
                         curr_headers = {}
                         continue
 
@@ -128,7 +159,16 @@ class GmailClient:
                             'url': COMPANY_CAREER_URLS.get(c_norm, f"https://www.{c_norm}.com/careers")
                         }
 
-                    if not parsed['company']:
+                    comp_clean = (parsed.get('company') or '').strip()
+                    comp_low = comp_clean.lower()
+                    if (
+                        not comp_clean
+                        or len(comp_clean) <= 1
+                        or 'harsha' in comp_low
+                        or 'injeti' in comp_low
+                        or any(d in comp_low for d in EXCLUDE_DOMAINS)
+                        or any(re.search(pat, comp_low, re.I) for pat in EXCLUDE_PATTERNS)
+                    ):
                         curr_headers = {}
                         continue
 
