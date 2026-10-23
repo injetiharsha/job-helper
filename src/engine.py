@@ -82,6 +82,8 @@ class JobHelperEngine:
         updated_count = 0
         if status_updates:
             print(f"\n[*] Processing {len(status_updates)} lifecycle stage transitions...")
+            # Sort updates chronologically so latest event wins
+            status_updates.sort(key=lambda x: x.get('date', ''))
             for update in status_updates:
                 u_comp = update['company']
                 u_date = update['date']
@@ -96,9 +98,17 @@ class JobHelperEngine:
                     p_c_norm = re.sub(r'[^a-zA-Z0-9]', '', p.get('company', '').lower())
                     if p_c_norm and (p_c_norm == c_norm or c_norm in p_c_norm or p_c_norm in c_norm):
                         current_status = p.get('updated_status', '')
+                        p_up_date = p.get('updated_date', '')
+
+                        # Never overwrite a newer rejection with an older assessment/review
+                        if 'rejected' in current_status.lower() and 'rejected' not in stage_name.lower():
+                            if p_up_date and p_up_date >= u_date:
+                                break
+
                         if current_status != stage_name or u_deadline:
                             if self.notion.update_stage_status(p['id'], p.get('s_no'), p.get('company'), stage_name, u_date, u_deadline):
                                 p['updated_status'] = stage_name
+                                p['updated_date'] = u_date
                                 updated_count += 1
                             break
 

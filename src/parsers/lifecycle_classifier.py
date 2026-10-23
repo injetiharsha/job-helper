@@ -11,6 +11,7 @@ class LifecycleClassifier:
         s_low = subject.lower()
         b_low = body_text.lower()
         combined = f"{s_low} {b_low}"
+        combined = re.sub(r'\s+', ' ', combined)
 
         # 1. Check for Rejections first
         for rej_stage, patterns in REJECTION_FORMULAS.items():

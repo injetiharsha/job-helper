@@ -84,21 +84,32 @@ STAGE_KEYWORDS = {
 REJECTION_FORMULAS = {
     # Formula A: Fast Disqualification / Automated Knockout
     HiringStage.REJECTED_ATS: [
-        r'not to move forward with your application at this time',
-        r'will not be moving forward with your application',
-        r'not moving forward with your candidacy at this time',
-        r'unable to consider it further at this time'
+        r'not\s+to\s+move\s+forward\s+with\s+your\s+application',
+        r'will\s+not\s+be\s+moving\s+forward\s+with\s+your\s+application',
+        r'not\s+moving\s+forward\s+with\s+your\s+candidacy',
+        r'unable\s+to\s+consider\s+it\s+further\s+at\s+this\s+time',
+        r'(?:decided|chosen)\s+not\s+to\s+proceed\s+with\s+your\s+application',
+        r'not\s+to\s+proceed\s+with\s+your\s+application',
+        r'not\s+to\s+proceed\s+with\s+your\s+candidacy',
+        r'not\s+be\s+progressing\s+with\s+your\s+candidacy',
+        r'will\s+not\s+be\s+progressing\s+with\s+your',
+        r'unable\s+to\s+offer\s+you\s+an\s+interview',
     ],
     # Formula B: Competitive Review Pool
     HiringStage.REJECTED_REVIEW: [
-        r'other candidates whose qualifications more closely match',
-        r'moving forward with other candidates whose qualifications',
-        r'decided to pursue other candidates',
-        r'received a large number of applications.*decided to move forward with other'
+        r'other\s+candidates\s+whose\s+qualifications\s+more\s+closely\s+match',
+        r'moving\s+forward\s+with\s+other\s+candidates',
+        r'decided\s+to\s+pursue\s+other\s+candidates',
+        r'decided\s+to\s+move\s+forward\s+with\s+another\s+candidate',
+        r'large\s+number\s+of\s+applications.*(?:other\s+candidates|another\s+candidate)'
     ],
     # General fallback
     HiringStage.REJECTED_GENERIC: [
-        r'regret to inform', r'unfortunately', r'not selected',
-        r'unsuccessful in this process', r'cannot offer you'
+        r'regret\s+to\s+inform\s+you',
+        r'regret\s+that\s+we\s+cannot',
+        r'unfortunately.*(?:not\s+selected|cannot\s+offer|will\s+not\s+be|unable\s+to)',
+        r'not\s+selected\s+for\s+(?:this\s+)?(?:position|role|interview)',
+        r'unsuccessful\s+in\s+this\s+process',
+        r'cannot\s+offer\s+you\s+(?:an\s+)?interview'
     ]
 }

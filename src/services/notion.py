@@ -58,6 +58,7 @@ class NotionClient:
 
             s_no = (props.get('S. No.') or {}).get('unique_id', {}).get('number')
             applied_date = ((props.get('Applied Date') or {}).get('date') or {}).get('start', '')
+            updated_date = ((props.get('Updated Date') or {}).get('date') or {}).get('start', '')
 
             status = ((props.get('Status') or {}).get('status') or {}).get('name', '')
             updated_status = ((props.get('Updated Status') or {}).get('status') or {}).get('name', '')
@@ -69,6 +70,7 @@ class NotionClient:
                 'company': comp,
                 'role': role,
                 'applied_date': applied_date,
+                'updated_date': updated_date,
                 'status': status,
                 'updated_status': updated_status,
                 'url': url

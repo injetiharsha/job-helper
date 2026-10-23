@@ -3,6 +3,7 @@ import email
 from email.header import decode_header
 from email.utils import parsedate_to_datetime
 import re
+import quopri
 from src.core.config import GMAIL_EMAIL, GMAIL_APP_PASSWORD, LINKEDIN_DEFAULT_URL, COMPANY_CAREER_URLS
 from src.core.cleaner import clean_role_title, clean_company_name
 from src.parsers.linkedin_parser import LinkedInParser
@@ -73,9 +74,17 @@ class GmailClient:
                         'date': h.get('Date', '')
                     }
                 elif isinstance(item, tuple) and b'BODY[1]' in item[0]:
-                    body_text = item[1].decode('utf-8', errors='replace')
                     if not curr_headers:
                         continue
+                    raw_b = item[1].decode('utf-8', errors='replace')
+                    raw_b = re.sub(r'=\r?\n', '', raw_b)
+                    try:
+                        raw_b = quopri.decodestring(raw_b.encode('utf-8')).decode('utf-8', errors='replace')
+                    except Exception:
+                        pass
+                    clean_b = re.sub(r'<[^>]+>', ' ', raw_b)
+                    clean_b = re.sub(r'[ \t]+', ' ', clean_b)
+                    body_text = re.sub(r'\n\s*\n+', '\n', clean_b).strip()
 
                     subj = curr_headers.get('subject', '').strip()
                     from_h = curr_headers.get('from', '').strip()
