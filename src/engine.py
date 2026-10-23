@@ -86,6 +86,7 @@ class JobHelperEngine:
                 u_comp = update['company']
                 u_date = update['date']
                 u_stage = update['stage']
+                u_deadline = update.get('deadline')
                 stage_name = u_stage.value if hasattr(u_stage, 'value') else str(u_stage)
 
                 c_norm = re.sub(r'[^a-zA-Z0-9]', '', u_comp.lower())
@@ -95,8 +96,8 @@ class JobHelperEngine:
                     p_c_norm = re.sub(r'[^a-zA-Z0-9]', '', p.get('company', '').lower())
                     if p_c_norm and (p_c_norm == c_norm or c_norm in p_c_norm or p_c_norm in c_norm):
                         current_status = p.get('updated_status', '')
-                        if current_status != stage_name:
-                            if self.notion.update_stage_status(p['id'], p.get('s_no'), p.get('company'), stage_name, u_date):
+                        if current_status != stage_name or u_deadline:
+                            if self.notion.update_stage_status(p['id'], p.get('s_no'), p.get('company'), stage_name, u_date, u_deadline):
                                 p['updated_status'] = stage_name
                                 updated_count += 1
                             break

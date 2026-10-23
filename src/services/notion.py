@@ -115,14 +115,17 @@ class NotionClient:
             time.sleep(0.35)
         return False
 
-    def update_stage_status(self, page_id, s_no, company, stage_name, update_date_str):
-        """Updates Updated Status and Updated Date for an existing page."""
+    def update_stage_status(self, page_id, s_no, company, stage_name, update_date_str, deadline_str=None):
+        """Updates Updated Status, Updated Date, and optional Deadline for an existing page."""
         payload = {
             "properties": {
                 "Updated Status": {"status": {"name": stage_name}},
                 "Updated Date": {"date": {"start": update_date_str}}
             }
         }
+        if deadline_str:
+            payload["properties"]["Deadline / Event Date"] = {"date": {"start": deadline_str}}
+
         req = urllib.request.Request(
             f"https://api.notion.com/v1/pages/{page_id}",
             data=json.dumps(payload).encode('utf-8'),
@@ -133,7 +136,8 @@ class NotionClient:
             try:
                 with urllib.request.urlopen(req) as resp:
                     if resp.status == 200:
-                        print(f"  [*] Updated S.No {s_no} ({company}) -> {stage_name} ({update_date_str})")
+                        dl_info = f" | Deadline: {deadline_str}" if deadline_str else ""
+                        print(f"  [*] Updated S.No {s_no} ({company}) -> {stage_name} ({update_date_str}){dl_info}")
                         return True
             except urllib.error.HTTPError as e:
                 if e.code == 429:

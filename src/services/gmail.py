@@ -8,6 +8,7 @@ from src.core.cleaner import clean_role_title, clean_company_name
 from src.parsers.linkedin_parser import LinkedInParser
 from src.parsers.workday_parser import WorkdayParser
 from src.parsers.lifecycle_classifier import LifecycleClassifier
+from src.parsers.deadline_parser import DeadlineParser
 from src.core.stages import HiringStage
 
 EXCLUDE_PATTERNS = [
@@ -118,6 +119,7 @@ class GmailClient:
 
                     parsed['date'] = d_str
                     parsed['stage'] = stage
+                    parsed['deadline'] = DeadlineParser.extract_deadline(body_text, d_str)
 
                     # Separate into new submissions vs status transitions
                     if stage == HiringStage.STAGE_1_SUBMITTED:
