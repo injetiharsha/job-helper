@@ -104,6 +104,12 @@ class GmailClient:
                     else:
                         # General Enterprise Portal
                         comp = clean_company_name(from_h.split('<')[0])
+                        # If sender is generic (e.g. test vendor or recruiter), inspect subject
+                        for known in ["Google", "LSEG", "Banao Technologies", "TensorGo", "P&G", "Infosys", "United Airlines", "HSBC", "Swiss Re", "McKinsey", "Barclays", "Micron Technology", "ZoomRx", "Qualcomm", "ION Group", "Flex", "Colgate-Palmolive", "Accenture", "Aura Cloud", "Microsoft", "Novartis", "Electronic Arts (EA)"]:
+                            if re.search(r'\b' + re.escape(known) + r'\b', subj, re.I):
+                                comp = known
+                                break
+
                         role = clean_role_title(subj)
                         c_norm = re.sub(r'[^a-zA-Z0-9]', '', comp.lower())
                         parsed = {
