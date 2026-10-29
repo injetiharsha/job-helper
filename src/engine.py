@@ -2,7 +2,7 @@ import json
 import re
 import sys
 from datetime import datetime, date, timedelta
-from src.core.config import STATE_FILE, NO_RESPONSE_DAYS, BASE_DIR
+from src.core.config import STATE_FILE, NO_RESPONSE_DAYS
 from src.core.stages import HiringStage
 from src.services.gmail import GmailClient
 from src.services.notion import NotionClient
@@ -134,18 +134,6 @@ class JobHelperEngine:
         # 6. Save sync state
         today_str = date.today().strftime('%d-%b-%Y')
         self._save_state({"last_synced_date": today_str, "last_run_timestamp": datetime.now().isoformat()})
-
-        # 7. Generate Daily Audio Briefing via Sarvam Bulbul:v3
-        if self.sarvam.is_configured:
-            print("\n[*] Generating Audio Briefing via Sarvam Bulbul:v3...")
-            briefing_text = (
-                f"Hello Harsha. Job Helper sync completed. "
-                f"Found {created_count} new job applications, "
-                f"{updated_count} stage updates, and "
-                f"archived {stale_count} stale applications to No Response."
-            )
-            audio_out = BASE_DIR / "daily_briefing.wav"
-            self.sarvam.generate_audio_briefing(briefing_text, str(audio_out))
 
         print("\n==================================================")
         print("✅ Sync Cycle Completed Successfully!")

@@ -94,13 +94,19 @@ REJECTION_FORMULAS = {
         r'not\s+be\s+progressing\s+with\s+your\s+candidacy',
         r'will\s+not\s+be\s+progressing\s+with\s+your',
         r'unable\s+to\s+offer\s+you\s+an\s+interview',
+        r'(?:won\'t|will\s+not|not)\s+be\s+moving\s+(?:ahead|forward)',
+        r'closing\s+it\s+and\s+won\'t\s+be\s+moving\s+ahead',
+        r'filled\s+this\s+position.*(?:closing|not\s+be\s+moving)',
+        r'(?:will\s+not|not)\s+be\s+pursuing\s+your\s+candidacy',
     ],
     # Formula B: Competitive Review Pool
     HiringStage.REJECTED_REVIEW: [
         r'other\s+candidates\s+whose\s+qualifications\s+more\s+closely\s+match',
+        r'experience\s+and\s+qualifications\s+are\s+more\s+closely\s+aligned',
+        r'qualifications\s+more\s+closely\s+(?:match|align)',
         r'moving\s+forward\s+with\s+other\s+candidates',
         r'decided\s+to\s+pursue\s+other\s+candidates',
-        r'decided\s+to\s+move\s+forward\s+with\s+another\s+candidate',
+        r'decided\s+to\s+move\s+forward\s+with\s+(?:candidates|other\s+candidates|another\s+candidate)',
         r'large\s+number\s+of\s+applications.*(?:other\s+candidates|another\s+candidate)'
     ],
     # General fallback

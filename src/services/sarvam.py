@@ -1,21 +1,14 @@
 import json
-import base64
 import re
 import urllib.request
 import urllib.error
 from typing import Dict, Any, Optional, List
-from src.core.config import (
-    SARVAM_API_KEY,
-    SARVAM_CHAT_MODEL,
-    SARVAM_TTS_MODEL,
-    SARVAM_TTS_SPEAKER
-)
+from src.core.config import SARVAM_API_KEY, SARVAM_CHAT_MODEL
 
 class SarvamClient:
     """
-    Client for Sarvam AI APIs:
-    1. sarvam-105b: Highly accurate Indic-aware LLM for entity extraction & edge-case resolution.
-    2. bulbul:v3: High-fidelity Indian English Text-to-Speech for daily audio briefings.
+    Client for Sarvam AI LLM (sarvam-105b):
+    Used purely for text entity extraction and edge-case resolution.
     """
 
     def __init__(self):
@@ -162,47 +155,3 @@ class SarvamClient:
         ])
 
         return self._clean_json_response(raw)
-
-    def generate_audio_briefing(self, summary_text: str, output_path: Optional[str] = None) -> Optional[bytes]:
-        """
-        Generates natural Indian English audio from summary text using Sarvam Bulbul:v3.
-        Returns raw audio bytes (WAV) and optionally saves to output_path.
-        """
-        if not self.is_configured:
-            print("[Sarvam TTS]: SARVAM_API_KEY not configured. Skipping audio generation.")
-            return None
-
-        url = "https://api.sarvam.ai/text-to-speech"
-        payload = {
-            "inputs": [summary_text],
-            "target_language_code": "en-IN",
-            "speaker": SARVAM_TTS_SPEAKER,
-            "model": SARVAM_TTS_MODEL
-        }
-
-        req = urllib.request.Request(
-            url,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={
-                "Content-Type": "application/json",
-                "api-subscription-key": self.api_key
-            },
-            method="POST"
-        )
-
-        try:
-            with urllib.request.urlopen(req, timeout=25) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-                audios = data.get("audios", [])
-                if not audios:
-                    return None
-                
-                audio_bytes = base64.b64decode(audios[0])
-                if output_path:
-                    with open(output_path, "wb") as f:
-                        f.write(audio_bytes)
-                    print(f"  [🔊] Audio Briefing saved: {output_path}")
-                return audio_bytes
-        except Exception as e:
-            print(f"[Sarvam TTS Error]: {e}")
-            return None

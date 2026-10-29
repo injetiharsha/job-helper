@@ -6,7 +6,10 @@ STRIP_PREFIXES = [
     r'^(?:Thank you for applying for|Thank you for applying to|Thanks for applying to)\s*:?\s*',
     r'^(?:Thanks for your application to|Thanks for applying|An update on your application for)\s*:?\s*',
     r'^(?:An update on your application with|Your application for the position of|Your application for)\s*:?\s*',
-    r'^(?:Your application to|Regarding Your Application to|Regarding Your Application:|Regarding Your Application|Application received for|Application received:?)\s*:?\s*',
+    r'^(?:Your application to|Regarding your\s+.*?application(?:\s+for)?)\s*:?\s*',
+    r'^(?:Regarding Your Application to|Regarding Your Application:|Regarding Your Application)\s*:?\s*',
+    r'^(?:Application received for|Application received:?|Application Update:?)\s*:?\s*',
+    r'^(?:Update on your application for|Update on your application|We received your application:?)\s*:?\s*',
     r'^(?:Thank you for your interest in|Your recent job application for|Job Application Acknowledgement -)\s*:?\s*',
     r'^(?:You have successfully applied for|It’s great that you’re interested in|Welcome to the|Welcome to)\s*:?\s*',
     r'^(?:the job:|the position of|the)\s*:?\s*',
@@ -15,18 +18,18 @@ STRIP_PREFIXES = [
 
 # Tracking IDs and trailing metadata to remove from role titles
 STRIP_SUFFIXES = [
-    r'\s+at\s+.*$',                          # "... at Company Name"
-    r'\s*\(Req ID \d+\).*$',                 # Requisition IDs
-    r'\s*\(#\s*\d+\).*$',                    # SuccessFactors job numbers
-    r'\s*-\s*[A-Z0-9]{5,}.*$',               # Internal alphanumeric codes (e.g. - 25017217)
-    r'\s+received,?\s*Thank you.*$',         # Polite acknowledgments
-    r'\s*\(Fill Date:.*$',                   # ATS internal fill dates
-    r'\s*\|\s*.*$',                          # Pipe-delimited trailing notes
+    r'\s+at\s+.*$',                               # "... at Company Name"
+    r'\s*\(Req ID \d+\).*$',                      # Requisition IDs
+    r'\s*\(#\s*\d+\).*$',                         # SuccessFactors job numbers
+    r'\s*-\s*(?:REQ\s*)?[0-9]{4,}[A-Z0-9]*\b.*$', # Internal requisition numbers (e.g. - 160486, - 25017217)
+    r'\s+received,?\s*Thank you.*$',              # Polite acknowledgments
+    r'\s*\(Fill Date:.*$',                        # ATS internal fill dates
+    r'\s*\|\s*.*$',                               # Pipe-delimited trailing notes
 ]
 
 # Generic department, system, and ATS suffixes to strip from company names
 GENERIC_COMPANY_SUFFIXES = [
-    r'\s+(?:Human Resources|HR|Talent Acquisition|Recruitment|Recruiting|Careers|Career Team|Hiring Team|Team)$',
+    r'\s+(?:Human Resources|HR|Talent Acquisition|Recruitment|Recruiting|Careers|Career Team|Hiring Team|Team|Hiring)$',
     r'\s+(?:Workday Notifications|Workday System|Workday)$',
     r'^(?:Workday at|Careers at)\s+',
     r',?\s+(?:Inc\.?|Ltd\.?|LLC|Pvt\.?\s*Ltd\.?|GmbH)$'
@@ -36,7 +39,7 @@ GENERIC_COMPANY_NAMES = {
     'human resources', 'talent acquisition', 'recruitment', 'recruiting',
     'careers', 'career', 'hiring team', 'people team', 'team', 'hr',
     'workday', 'no-reply', 'noreply', 'applicant', 'notifications',
-    'talent', 'campus recruitment', 'people and culture'
+    'talent', 'campus recruitment', 'people and culture', 'hiring'
 }
 
 def clean_role_title(role_str: str) -> str:

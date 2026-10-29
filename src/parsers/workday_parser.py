@@ -42,11 +42,22 @@ class WorkdayParser:
         # Fallback sender parsing for company name
         if not company:
             name_part = from_hdr.split('<')[0].replace('"', '').strip()
-            if '@' in name_part or not name_part or 'workday' in name_part.lower():
+            c_cand = clean_company_name(name_part)
+            if c_cand:
+                company = c_cand
+            else:
                 m_dom = re.search(r'([a-zA-Z0-9.-]+)@(?:[a-zA-Z0-9.-]*\.)?myworkday\.com', from_hdr, re.I)
-                name_part = m_dom.group(1).capitalize() if m_dom else None
-            if name_part:
-                company = clean_company_name(name_part)
+                if m_dom:
+                    company = clean_company_name(m_dom.group(1).capitalize())
+
+        # Fallback body extraction for role if subject was generic (e.g. "Your Application at Novartis")
+        cand_role = role or clean_role_title(s)
+        if not cand_role or cand_role.lower() in ['your application', 'application', 'career']:
+            m_body_role = re.search(r'(?:apply to|position of|role of|application for)\s+(?:\[not available\]\s+)?(?:REQ-?\d+\s+)?([A-Za-z0-9&/.,\s-]{4,60}?)(?:\s+After|\s+Thank|\s+If|\.|\n)', body_text, re.I)
+            if m_body_role:
+                extracted = clean_role_title(m_body_role.group(1))
+                if extracted and len(extracted) > 2:
+                    cand_role = extracted
 
         # Extract Candidate Home URL if present in body
         url = None
@@ -56,7 +67,7 @@ class WorkdayParser:
 
         return {
             'company': company,
-            'role': role or clean_role_title(s),
+            'role': cand_role,
             'portal': 'Career Portal',
             'url': url
         }

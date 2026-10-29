@@ -116,7 +116,9 @@ class GmailClient:
                         raw_b = quopri.decodestring(raw_b.encode('utf-8')).decode('utf-8', errors='replace')
                     except Exception:
                         pass
-                    clean_b = re.sub(r'<[^>]+>', ' ', raw_b)
+                    clean_b = re.sub(r'<style[^>]*>.*?</style>', ' ', raw_b, flags=re.DOTALL | re.I)
+                    clean_b = re.sub(r'<script[^>]*>.*?</script>', ' ', clean_b, flags=re.DOTALL | re.I)
+                    clean_b = re.sub(r'<[^>]+>', ' ', clean_b)
                     clean_b = re.sub(r'[ \t]+', ' ', clean_b)
                     body_text = re.sub(r'\n\s*\n+', '\n', clean_b).strip()
 
@@ -161,6 +163,16 @@ class GmailClient:
                             c_cand = clean_company_name(m_reg.group(1))
                             if c_cand:
                                 comp = c_cand
+
+                        # Domain extraction fallback for generic sender display names (e.g. "Human Resources <...>")
+                        if not comp:
+                            m_dom = re.search(r'@(?:[a-zA-Z0-9-]+\.)*([a-zA-Z0-9-]+)\.[a-z]{2,}', from_h)
+                            if m_dom:
+                                dom_cand = m_dom.group(1).lower()
+                                if dom_cand not in ['gmail', 'yahoo', 'outlook', 'hotmail', 'myworkday', 'linkedin', 'googlemail', 'tikkodesk']:
+                                    comp = clean_company_name(dom_cand.capitalize())
+                                elif dom_cand == 'tikkodesk':
+                                    comp = 'Tikko Desk'
 
                         # Dynamic match against candidate's active companies from Notion if sender is generic
                         if not comp and active_companies:

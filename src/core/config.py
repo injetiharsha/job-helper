@@ -13,10 +13,8 @@ NOTION_TOKEN = os.getenv("NOTION_TOKEN")
 NOTION_DATABASE_ID = os.getenv("NOTION_DATABASE_ID", "")
 SARVAM_API_KEY = os.getenv("SARVAM_API_KEY", "")
 
-# Sarvam Configuration
+# Sarvam Configuration (Text extraction only)
 SARVAM_CHAT_MODEL = os.getenv("SARVAM_CHAT_MODEL", "sarvam-105b")
-SARVAM_TTS_MODEL = os.getenv("SARVAM_TTS_MODEL", "bulbul:v3")
-SARVAM_TTS_SPEAKER = os.getenv("SARVAM_TTS_SPEAKER", "kavya")
 
 # State & Thresholds
 STATE_FILE = BASE_DIR / "sync_state.json"
