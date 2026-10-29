@@ -24,7 +24,9 @@ class SarvamClient:
 
     def _clean_json_response(self, text: str) -> Dict[str, Any]:
         """Strips markdown fences and parses JSON safely."""
-        text = text.strip()
+        if not text:
+            return {}
+        text = str(text).strip()
         if "```json" in text:
             text = text.split("```json")[1].split("```")[0].strip()
         elif "```" in text:
@@ -66,7 +68,13 @@ class SarvamClient:
         try:
             with urllib.request.urlopen(req, timeout=20) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
-                return data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+                choices = data.get("choices") or []
+                if choices and isinstance(choices, list):
+                    msg = choices[0].get("message") or {}
+                    content = msg.get("content")
+                    if content is not None:
+                        return str(content).strip()
+                return ""
         except Exception as e:
             print(f"[Sarvam Chat Error]: {e}")
             return ""

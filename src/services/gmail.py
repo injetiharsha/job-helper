@@ -155,15 +155,22 @@ class GmailClient:
                     else:
                         # General Enterprise Portal
                         comp = clean_company_name(from_h.split('<')[0])
+                        # Generic pattern: "Regarding your <Company> Application"
+                        m_reg = re.search(r'regarding your\s+([A-Za-z0-9&.\s]+?)\s+application', subj, re.I)
+                        if m_reg:
+                            c_cand = clean_company_name(m_reg.group(1))
+                            if c_cand:
+                                comp = c_cand
+
                         # Dynamic match against candidate's active companies from Notion if sender is generic
-                        if active_companies:
+                        if not comp and active_companies:
                             for ac in active_companies:
                                 if len(ac) > 2 and re.search(r'\b' + re.escape(ac) + r'\b', subj, re.I):
                                     comp = ac
                                     break
 
                         role = clean_role_title(subj)
-                        c_norm = re.sub(r'[^a-zA-Z0-9]', '', comp.lower())
+                        c_norm = re.sub(r'[^a-zA-Z0-9]', '', (comp or '').lower())
                         parsed = {
                             'company': comp,
                             'role': role or "Software Engineer / Intern",
@@ -177,7 +184,7 @@ class GmailClient:
                     is_suspicious_company = (
                         not comp_name
                         or len(comp_name) <= 2
-                        or comp_low in ['careers', 'career', 'jobs', 'application', 'candidate home', 'notifications', 'talent acquisition', 'recruitment', 'team', 'hr', 'workday', 'no-reply', 'noreply', 'applicant', 'recruiting']
+                        or comp_low in ['careers', 'career', 'jobs', 'application', 'candidate home', 'notifications', 'talent acquisition', 'recruitment', 'team', 'hr', 'workday', 'no-reply', 'noreply', 'applicant', 'recruiting', 'human resources', 'talent', 'hiring team', 'people team']
                         or any(ats in from_low for ats in ['recruiting', 'talent', 'careers', 'smartrecruiters', 'icims', 'ashby', 'greenhouse', 'lever', 'oraclecloud', 'successfactors', 'taleo'])
                         or any(phrase in subj.lower() for phrase in ['acknowledgement', 'candidate home', 'application received', 'application update'])
                     )
@@ -222,7 +229,7 @@ class GmailClient:
                                 'technical round': HiringStage.STAGE_5_TECHNICAL_ROUND,
                                 'final round': HiringStage.STAGE_6_FINAL_ROUND,
                                 'offer': HiringStage.STAGE_7_OFFER,
-                                'rejected': HiringStage.REJECTED_REVIEW_POOL,
+                                'rejected': HiringStage.REJECTED_GENERIC,
                                 'under review': HiringStage.STAGE_2_UNDER_REVIEW
                             }
                             st_key = (stage_event.get('stage') or '').strip().lower()

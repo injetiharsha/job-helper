@@ -29,6 +29,7 @@ class HiringStage(Enum):
     # Terminal Statuses
     REJECTED_ATS = "Rejected (ATS Screen)"
     REJECTED_REVIEW = "Rejected (Review Pool)"
+    REJECTED_REVIEW_POOL = "Rejected (Review Pool)"
     REJECTED_GENERIC = "Rejected"
     NO_RESPONSE = "No Response"
 

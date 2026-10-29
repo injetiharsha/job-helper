@@ -6,7 +6,7 @@ STRIP_PREFIXES = [
     r'^(?:Thank you for applying for|Thank you for applying to|Thanks for applying to)\s*:?\s*',
     r'^(?:Thanks for your application to|Thanks for applying|An update on your application for)\s*:?\s*',
     r'^(?:An update on your application with|Your application for the position of|Your application for)\s*:?\s*',
-    r'^(?:Your application to|Regarding Your Application|Application received for|Application received:?)\s*:?\s*',
+    r'^(?:Your application to|Regarding Your Application to|Regarding Your Application:|Regarding Your Application|Application received for|Application received:?)\s*:?\s*',
     r'^(?:Thank you for your interest in|Your recent job application for|Job Application Acknowledgement -)\s*:?\s*',
     r'^(?:You have successfully applied for|It’s great that you’re interested in|Welcome to the|Welcome to)\s*:?\s*',
     r'^(?:the job:|the position of|the)\s*:?\s*',
@@ -31,6 +31,13 @@ GENERIC_COMPANY_SUFFIXES = [
     r'^(?:Workday at|Careers at)\s+',
     r',?\s+(?:Inc\.?|Ltd\.?|LLC|Pvt\.?\s*Ltd\.?|GmbH)$'
 ]
+
+GENERIC_COMPANY_NAMES = {
+    'human resources', 'talent acquisition', 'recruitment', 'recruiting',
+    'careers', 'career', 'hiring team', 'people team', 'team', 'hr',
+    'workday', 'no-reply', 'noreply', 'applicant', 'notifications',
+    'talent', 'campus recruitment', 'people and culture'
+}
 
 def clean_role_title(role_str: str) -> str:
     """Removes email preambles, requisition tags, and encoding artifacts from role titles."""
@@ -68,5 +75,7 @@ def clean_company_name(comp_str: str) -> str:
     for suff in GENERIC_COMPANY_SUFFIXES:
         clean = re.sub(suff, '', clean, flags=re.I).strip()
 
-    clean = re.sub(r'\s+', ' ', clean)
+    clean = re.sub(r'\s+', ' ', clean).strip()
+    if clean.lower() in GENERIC_COMPANY_NAMES:
+        return ""
     return clean
