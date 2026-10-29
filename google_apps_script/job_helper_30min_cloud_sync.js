@@ -96,6 +96,16 @@ function syncFromOctoberFirst() {
 
 function processEmailsWithQuery(query, isFullBackfill) {
   const config = getConfig();
+
+  // Validate configuration before starting
+  if (!config.NOTION_TOKEN || config.NOTION_TOKEN.includes("YOUR_")) {
+    Logger.log("❌ ERROR: NOTION_TOKEN is missing or contains placeholder! Please update setupScriptProperties() with your real Notion token and run it once.");
+    return;
+  }
+  if (!config.SARVAM_API_KEY || config.SARVAM_API_KEY.includes("YOUR_")) {
+    Logger.log("⚠️ WARNING: SARVAM_API_KEY is missing or contains placeholder! Please update setupScriptProperties() with your real Sarvam key.");
+  }
+
   const userProps = PropertiesService.getUserProperties();
   const lastCheckMs = isFullBackfill ? 0 : parseInt(userProps.getProperty("LAST_CHECK_MS") || "0", 10);
   const nowMs = Date.now();
@@ -255,16 +265,21 @@ Return JSON only:
       });
 
       const resJson = JSON.parse(resp.getContentText());
-      let text = resJson.choices[0].message.content.trim();
-      if (text.includes("```json")) text = text.split("```json")[1].split("```")[0].trim();
-      else if (text.includes("```")) text = text.split("```")[1].split("```")[0].trim();
-      
-      const parsed = JSON.parse(text);
-      parsed.company = cleanCompanyName(parsed.company);
-      parsed.dateStr = dateStr;
-      return parsed;
+      if (resJson.choices && resJson.choices.length > 0) {
+        let text = resJson.choices[0].message.content.trim();
+        if (text.includes("```json")) text = text.split("```json")[1].split("```")[0].trim();
+        else if (text.includes("```")) text = text.split("```")[1].split("```")[0].trim();
+        
+        const parsed = JSON.parse(text);
+        parsed.company = cleanCompanyName(parsed.company);
+        parsed.dateStr = dateStr;
+        return parsed;
+      } else {
+        const errMsg = resJson.error ? resJson.error.message : resp.getContentText();
+        Logger.log("Sarvam API error: " + errMsg);
+      }
     } catch (e) {
-      Logger.log("Sarvam extraction fallback error: " + e.message);
+      Logger.log("Sarvam extraction exception: " + e.message);
     }
   }
 
@@ -349,7 +364,12 @@ function createNotionApplication(data, config) {
       payload: JSON.stringify(payload),
       muteHttpExceptions: true
     });
-    return resp.getResponseCode() === 200;
+    if (resp.getResponseCode() === 200) {
+      return true;
+    } else {
+      Logger.log(`Notion create failed (${resp.getResponseCode()}): ${resp.getContentText()}`);
+      return false;
+    }
   } catch (e) {
     Logger.log("Notion create error: " + e.message);
     return false;
@@ -380,7 +400,12 @@ function updateNotionStage(pageId, data, config) {
       payload: JSON.stringify({ properties: props }),
       muteHttpExceptions: true
     });
-    return resp.getResponseCode() === 200;
+    if (resp.getResponseCode() === 200) {
+      return true;
+    } else {
+      Logger.log(`Notion update failed (${resp.getResponseCode()}): ${resp.getContentText()}`);
+      return false;
+    }
   } catch (e) {
     Logger.log("Notion update error: " + e.message);
     return false;
