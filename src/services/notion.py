@@ -113,16 +113,24 @@ class NotionClient:
     def create_application(self, app):
         """Creates a new application row in Notion."""
         status_type = self._property_types.get("Status", "select")
+        comp = (app.get('company') or 'Unknown Company').strip()
+        role = (app.get('role') or 'Software Engineer / Intern').strip()
+        portal = (app.get('portal') or 'Career Portal').strip()
+        url = (app.get('url') or '').strip()
+
+        props = {
+            "Company": {"title": [{"text": {"content": comp}}]},
+            "Role": {"rich_text": [{"text": {"content": role}}]},
+            "Applied Date": {"date": {"start": app['date']}},
+            "Portal": {"select": {"name": portal}},
+            "Status": {status_type: {"name": "Submitted"}}
+        }
+        if url.startswith("http"):
+            props["URL"] = {"url": url}
+
         payload = {
             "parent": {"database_id": self.database_id},
-            "properties": {
-                "Company": {"title": [{"text": {"content": app['company']}}]},
-                "Role": {"rich_text": [{"text": {"content": app['role']}}]},
-                "Applied Date": {"date": {"start": app['date']}},
-                "Portal": {"select": {"name": app['portal']}},
-                "URL": {"url": app['url']},
-                "Status": {status_type: {"name": "Submitted"}}
-            }
+            "properties": props
         }
 
         req = urllib.request.Request(
@@ -139,7 +147,7 @@ class NotionClient:
                         data = json.loads(resp.read().decode('utf-8'))
                         s_no = (data.get('properties', {}).get('S. No.', {}).get('unique_id') or {}).get('number')
                         s_no_lbl = f"S.No {s_no}" if s_no else "[New Entry]"
-                        print(f"  [+] Created {s_no_lbl}: {app['company']:22s} | {app['role'][:35]:35s} | {app['date']}")
+                        print(f"  [+] Created {s_no_lbl}: {comp:22s} | {role[:35]:35s} | {app['date']}")
                         return True
             except urllib.error.HTTPError as e:
                 if e.code == 429:

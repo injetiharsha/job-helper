@@ -42,8 +42,11 @@ jobs:
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
           SARVAM_API_KEY: ${{ secrets.SARVAM_API_KEY }}
         run: |
-          if [ -n "${{ github.event.inputs.since }}" ]; then
-            python run_sync.py --since "${{ github.event.inputs.since }}"
+          SINCE_INPUT="${{ inputs.since || github.event.inputs.since || github.event.client_payload.since }}"
+          if [ -n "$SINCE_INPUT" ]; then
+            echo "[*] Running with explicit lookback date: $SINCE_INPUT"
+            python run_sync.py --since "$SINCE_INPUT"
           else
+            echo "[*] Running with standard incremental/state lookback"
             python run_sync.py
           fi

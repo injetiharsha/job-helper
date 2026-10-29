@@ -172,7 +172,7 @@ class GmailClient:
                         }
 
                     # Tier 2: Sarvam AI Resolver Fallback for edge cases (e.g. Valeo, weird portal subject lines)
-                    comp_name = parsed.get('company', '').strip()
+                    comp_name = (parsed.get('company') or '').strip()
                     comp_low = comp_name.lower()
                     is_suspicious_company = (
                         not comp_name
@@ -188,7 +188,7 @@ class GmailClient:
                             parsed['company'] = clean_company_name(ai_res['company'])
                             if ai_res.get('role'):
                                 parsed['role'] = clean_role_title(ai_res['role'])
-                            c_norm = re.sub(r'[^a-zA-Z0-9]', '', parsed['company'].lower())
+                            c_norm = re.sub(r'[^a-zA-Z0-9]', '', (parsed.get('company') or '').lower())
                             parsed['url'] = COMPANY_CAREER_URLS.get(c_norm, f"https://www.{c_norm}.com/careers")
 
                     # Tier 2: Downstream Stage & Relay ATS Resolver (Ashby, Greenhouse, Lever, HackerRank, Codility)
@@ -242,6 +242,8 @@ class GmailClient:
                         curr_headers = {}
                         continue
 
+                    parsed['company'] = comp_clean
+                    parsed['role'] = (parsed.get('role') or 'Software Engineer / Intern').strip()
                     parsed['date'] = d_str
                     parsed['stage'] = stage
                     parsed['deadline'] = DeadlineParser.extract_deadline(body_text, d_str)

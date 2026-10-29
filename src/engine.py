@@ -70,8 +70,8 @@ class JobHelperEngine:
         created_count = 0
         to_create = []
         for app in new_applications:
-            c_norm = re.sub(r'[^a-zA-Z0-9]', '', app['company'].lower())
-            r_norm = re.sub(r'[^a-zA-Z0-9]', '', app['role'].lower())[:15]
+            c_norm = re.sub(r'[^a-zA-Z0-9]', '', (app.get('company') or '').lower())
+            r_norm = re.sub(r'[^a-zA-Z0-9]', '', (app.get('role') or '').lower())[:15]
             if (c_norm, r_norm) not in existing_index and c_norm:
                 existing_index.add((c_norm, r_norm))
                 to_create.append(app)
@@ -91,13 +91,15 @@ class JobHelperEngine:
             # Sort updates chronologically so latest event wins
             status_updates.sort(key=lambda x: x.get('date', ''))
             for update in status_updates:
-                u_comp = update['company']
-                u_date = update['date']
-                u_stage = update['stage']
+                u_comp = update.get('company') or ''
+                u_date = update.get('date', '')
+                u_stage = update.get('stage')
                 u_deadline = update.get('deadline')
                 stage_name = u_stage.value if hasattr(u_stage, 'value') else str(u_stage)
 
                 c_norm = re.sub(r'[^a-zA-Z0-9]', '', u_comp.lower())
+                if not c_norm:
+                    continue
                 
                 # Match against existing Notion pages
                 for p in existing_pages:
