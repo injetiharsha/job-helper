@@ -60,7 +60,7 @@ function isExcludedSender(fromH) {
 }
 
 const EXCLUDE_PATTERNS = [
-  /\b(?:pan\s*card|pan\s*application|intimation\s*of\s*pan|police\s*verification|passport|income\s*tax|itr|aadhaar|form\s*16|e-filing)\b/i,
+  /\b(?:pan\s*card|pan\s*application|intimation\s*of\s*pan|passport|income\s*tax|itr|aadhaar|form\s*16|e-filing)\b/i,
   /\b(?:verification code|security code|password reset|confirm your email|sign[- ]in code|2fa|otp)\b/i,
   /\b(?:study abroad|scholarship|admissions?|degree application)\b/i,
   /\b(?:talent community|job alert|recommended jobs|weekly alert|newsletter)\b/i
@@ -211,7 +211,7 @@ function syncNotionToGoogleCalendar() {
     const jsonRaw = jsonArr.length > 0 ? jsonArr[0].plain_text : "";
     let meta = {};
     if (jsonRaw) {
-      try { meta = JSON.parse(jsonRaw); } catch (e) {}
+      try { meta = JSON.parse(jsonRaw); } catch (e) { }
     }
 
     if (meta.calendar_synced === true) {
