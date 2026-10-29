@@ -58,7 +58,7 @@ class JobHelperEngine:
                 existing_index.add((c_norm, r_norm))
 
         # 2. Fetch recruitment events from Gmail
-        gmail = GmailClient()
+        gmail = GmailClient(sarvam_client=self.sarvam)
         try:
             new_applications, status_updates = gmail.fetch_recruitment_events(since_date, active_companies=active_companies)
         finally:
@@ -134,6 +134,9 @@ class JobHelperEngine:
         # 6. Save sync state
         today_str = date.today().strftime('%d-%b-%Y')
         self._save_state({"last_synced_date": today_str, "last_run_timestamp": datetime.now().isoformat()})
+
+        # 7. Print detailed Sarvam API telemetry & cost report
+        self.sarvam.print_telemetry_report()
 
         print("\n==================================================")
         print("✅ Sync Cycle Completed Successfully!")

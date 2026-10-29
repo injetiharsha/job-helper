@@ -58,13 +58,13 @@ EXCLUDE_PATTERNS = [
 ]
 
 class GmailClient:
-    def __init__(self):
+    def __init__(self, sarvam_client=None):
         if not GMAIL_EMAIL or not GMAIL_APP_PASSWORD:
             raise ValueError("Gmail credentials missing in .env")
         self.mail = imaplib.IMAP4_SSL("imap.gmail.com")
         self.mail.login(GMAIL_EMAIL, GMAIL_APP_PASSWORD)
         self.mail.select('"[Gmail]/All Mail"')
-        self.sarvam = SarvamClient()
+        self.sarvam = sarvam_client or SarvamClient()
 
     def _decode_header(self, raw_hdr):
         if not raw_hdr: return ""

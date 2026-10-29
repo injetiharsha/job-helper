@@ -2,6 +2,7 @@
 .env
 .env.*
 sync_state.json
+telemetry.json
 *.log
 *.wav
 *.mp3
