@@ -50,3 +50,11 @@ jobs:
             echo "[*] Running with standard incremental/state lookback"
             python run_sync.py
           fi
+
+      - name: Upload Sarvam Telemetry & Cost Audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sarvam-telemetry
+          path: telemetry.json
+          if-no-files-found: ignore

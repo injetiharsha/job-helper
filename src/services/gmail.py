@@ -5,7 +5,7 @@ from email.utils import parsedate_to_datetime
 import re
 import quopri
 from src.core.config import GMAIL_EMAIL, GMAIL_APP_PASSWORD, LINKEDIN_DEFAULT_URL, COMPANY_CAREER_URLS
-from src.core.cleaner import clean_role_title, clean_company_name
+from src.core.cleaner import clean_role_title, clean_company_name, GENERIC_COMPANY_NAMES
 from src.parsers.linkedin_parser import LinkedInParser
 from src.parsers.workday_parser import WorkdayParser
 from src.parsers.lifecycle_classifier import LifecycleClassifier
@@ -45,7 +45,7 @@ EXCLUDE_PATTERNS = [
     r'\b(?:study\s*abroad|admissions?|scholarship|degree\s*application)\b',
 
     # Aggregators & Marketing Alerts
-    r'\b(?:job\s*alert|recommended\s*jobs|top\s*jobs\s*for\s*you|new\s*jobs\s*posted|interview\s*experiences|weekly\s*alert|talent\s*community|newsletter)\b',
+    r'\b(?:job\s*alert|recommended\s*jobs|top\s*jobs\s*for\s*you|new\s*jobs\s*posted|interview\s*experiences|weekly\s*alert|talent\s*community|newsletter|apply\s*now|jobs\s*you\s*may\s*(?:like|be\s*interested)|recommended\s*for\s*you)\b',
     
     # Account & Security Verification
     r'\b(?:security\s*code|one-time-passcode|otp|verification\s*code|verify\s*your\s*email|password\s*reset|confirm\s*your\s*email|2fa|sign[- ]in\s*code)\b',
@@ -190,18 +190,17 @@ class GmailClient:
                             'url': COMPANY_CAREER_URLS.get(c_norm, f"https://www.{c_norm}.com/careers")
                         }
 
-                    # Tier 2: Sarvam AI Resolver Fallback for edge cases (e.g. Valeo, weird portal subject lines)
+                    # Tier 2: Sarvam AI Resolver Fallback for edge cases (ONLY if company is truly unknown or generic)
                     comp_name = (parsed.get('company') or '').strip()
                     comp_low = comp_name.lower()
-                    is_suspicious_company = (
+                    is_generic_name = (
                         not comp_name
                         or len(comp_name) <= 2
+                        or comp_low in GENERIC_COMPANY_NAMES
                         or comp_low in ['careers', 'career', 'jobs', 'application', 'candidate home', 'notifications', 'talent acquisition', 'recruitment', 'team', 'hr', 'workday', 'no-reply', 'noreply', 'applicant', 'recruiting', 'human resources', 'talent', 'hiring team', 'people team']
-                        or any(ats in from_low for ats in ['recruiting', 'talent', 'careers', 'smartrecruiters', 'icims', 'ashby', 'greenhouse', 'lever', 'oraclecloud', 'successfactors', 'taleo'])
-                        or any(phrase in subj.lower() for phrase in ['acknowledgement', 'candidate home', 'application received', 'application update'])
                     )
 
-                    if is_suspicious_company and self.sarvam.is_configured:
+                    if is_generic_name and self.sarvam.is_configured:
                         ai_res = self.sarvam.resolve_application_details(subj, body_text, from_h)
                         if ai_res.get('is_application') and ai_res.get('company'):
                             parsed['company'] = clean_company_name(ai_res['company'])
@@ -220,7 +219,8 @@ class GmailClient:
                         HiringStage.STAGE_7_OFFER
                     ] or ('reject' in str(stage).lower() and is_relay_sender)
 
-                    if (is_relay_sender or is_downstream_stage) and self.sarvam.is_configured:
+                    has_date_or_link_cues = any(w in body_text.lower() for w in ['zoom', 'teams', 'meet', 'calendar', 'deadline', 'complete by', 'scheduled for'])
+                    if (is_relay_sender or (is_downstream_stage and has_date_or_link_cues)) and self.sarvam.is_configured:
                         stage_event = self.sarvam.resolve_stage_event(subj, body_text, from_h, d_str, active_companies)
                         if stage_event.get('is_lifecycle_event'):
                             if stage_event.get('company'):
