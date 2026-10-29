@@ -11,41 +11,50 @@ from src.parsers.workday_parser import WorkdayParser
 from src.parsers.lifecycle_classifier import LifecycleClassifier
 from src.parsers.deadline_parser import DeadlineParser
 from src.core.stages import HiringStage
+from src.services.sarvam import SarvamClient
 
-# Senders and domains that must NEVER be ingested as employers
-EXCLUDE_DOMAINS = [
-    'passportindia.gov.in', 'proteantech.in', 'protean', 'incometax.gov.in',
-    'uidai.gov.in', 'glassdoor.com', 'glassdoor', 'galvanize', 'cdac.in',
-    'mail.amazon.jobs', 'amazon.jobs', 'accounts.google.com', 'ads-noreply@google.com',
-    'udayaharsha13@gmail.com'
-]
+def is_excluded_sender(from_header: str) -> bool:
+    """
+    Identifies non-employer senders generically:
+    1. Candidate's own email (dynamic from config).
+    2. Official government, statutory, tax, or military TLDs (.gov, .gov.in, .nic.in, .mil).
+    3. Non-employer security services and marketing aggregators.
+    """
+    from_low = from_header.lower()
 
-# Patterns in Subject or From that indicate non-job emails, newsletters, identity documents, or security
+    # User's own email address
+    if GMAIL_EMAIL and GMAIL_EMAIL.lower() in from_low:
+        return True
+
+    # Government, official statutory, and tax TLDs (.gov, .gov.in, .nic.in, .mil)
+    if re.search(r'@(?:[a-zA-Z0-9-]+\.)*(?:gov(?:\.[a-z]{2})?|nic\.in|mil)\b', from_low):
+        return True
+
+    # Generic non-employer infrastructure & aggregators
+    if any(d in from_low for d in ['accounts.google.com', 'ads-noreply', 'glassdoor.com']):
+        return True
+
+    return False
+
+# Generalized patterns that indicate non-job emails, newsletters, identity documents, or account security
 EXCLUDE_PATTERNS = [
-    # Government, Identity, Tax, Police Verification
-    r'pan\s+application', r'intimation\s+of\s+pan', r'police\s+verification',
-    r'passport\s+application', r'passportindia', r'income\s+tax', r'aadhaar',
-    r'protean', r'form\s+16',
+    # Statutory Government, Identity, Tax, Police Verification
+    r'\b(?:pan\s*card|pan\s*application|intimation\s*of\s*pan|police\s*verification|passport\s*application|passport|income\s*tax|itr|aadhaar|form\s*16|tax\s*deduction|e-filing|voter\s*id)\b',
     
-    # Academic, College, Study Abroad
-    r'study\s+abroad', r'bs\s+degree', r'degree\s+application', r'iit\s+madras',
-    r'galvanize\s+global', r'admissions?', r'scholarship',
+    # Academic Admissions & Study Abroad
+    r'\b(?:study\s*abroad|admissions?|scholarship|degree\s*application)\b',
 
-    # Aggregators, Alerts, Newsletters, Marketing
-    r'glassdoor', r'job\s+alert', r'saved\s+job', r'recommended\s+jobs',
-    r'top\s+jobs\s+for\s+you', r'new\s+jobs\s+posted', r'interview\s+experiences',
-    r'newsletter', r'digital\s+talent', r'weekly\s+alert', r'talent\s+community',
-    r'join\s+our\s+talent', r'is\s+hiring', r'potential\s+match', r'jobs\s+at\s+',
-    r'job\s+suggestions', r'job\s+search', r'experience\s+at\s+ntt',
+    # Aggregators & Marketing Alerts
+    r'\b(?:job\s*alert|recommended\s*jobs|top\s*jobs\s*for\s*you|new\s*jobs\s*posted|interview\s*experiences|weekly\s*alert|talent\s*community|newsletter)\b',
     
-    # Account & Security verification
-    r'security\s+code', r'one-time-passcode', r'verification\s+code', r'verify\s+your',
-    r'password\s+reset', r'confirm\s+your\s+email', r'2fa', r'sign[- ]in\s+code',
-    r'survey\s+request', r'talent\s+acquisition\s+survey', r'your\s+account\s+has\s+been\s+created',
-    r'have\s+you\s+completed\s+your\s+candidate\s+home',
+    # Account & Security Verification
+    r'\b(?:security\s*code|one-time-passcode|otp|verification\s*code|verify\s*your\s*email|password\s*reset|confirm\s*your\s*email|2fa|sign[- ]in\s*code)\b',
+    
+    # Surveys & Candidate Home setup
+    r'\b(?:survey\s*request|talent\s*acquisition\s*survey|your\s*account\s*has\s*been\s*created)\b',
     
     # Application Withdrawn
-    r'withdrawn\s+your\s+.*application', r'withdrew\s+your\s+application'
+    r'\b(?:withdrawn\s+your\s+.*application|withdrew\s+your\s+application)\b'
 ]
 
 class GmailClient:
@@ -55,6 +64,7 @@ class GmailClient:
         self.mail = imaplib.IMAP4_SSL("imap.gmail.com")
         self.mail.login(GMAIL_EMAIL, GMAIL_APP_PASSWORD)
         self.mail.select('"[Gmail]/All Mail"')
+        self.sarvam = SarvamClient()
 
     def _decode_header(self, raw_hdr):
         if not raw_hdr: return ""
@@ -66,9 +76,10 @@ class GmailClient:
                 res.append(str(frag))
         return "".join(res)
 
-    def fetch_recruitment_events(self, since_date_str):
+    def fetch_recruitment_events(self, since_date_str, active_companies=None):
         """
         Scans for application submissions and lifecycle progression updates.
+        Supports active_companies context for resolving 3rd-party ATS relay domains (Ashby, Greenhouse, etc.).
         """
         query = f'(SINCE "{since_date_str}" OR (SUBJECT "interview") (OR (SUBJECT "assessment") (OR (SUBJECT "application") (FROM "jobs-noreply@linkedin.com"))))'
         typ, data = self.mail.search(None, query)
@@ -115,7 +126,7 @@ class GmailClient:
 
                     # 1. Skip if sender is blacklisted or user's own email
                     from_low = from_h.lower()
-                    if any(d in from_low for d in EXCLUDE_DOMAINS):
+                    if is_excluded_sender(from_h):
                         curr_headers = {}
                         continue
 
@@ -136,7 +147,7 @@ class GmailClient:
                     # 1. Classify Hiring Stage
                     stage = LifecycleClassifier.classify_email(subj, body_text)
 
-                    # 2. Extract Company & Role
+                    # 2. Extract Company & Role (Tier 1: Fast Regex)
                     if LinkedInParser.is_linkedin_email(from_h):
                         parsed = LinkedInParser.parse(from_h, subj, body_text)
                     elif WorkdayParser.is_workday_email(from_h, body_text):
@@ -144,11 +155,12 @@ class GmailClient:
                     else:
                         # General Enterprise Portal
                         comp = clean_company_name(from_h.split('<')[0])
-                        # If sender is generic (e.g. test vendor or recruiter), inspect subject
-                        for known in ["Google", "LSEG", "Banao Technologies", "TensorGo", "P&G", "Infosys", "United Airlines", "HSBC", "Swiss Re", "McKinsey", "Barclays", "Micron Technology", "ZoomRx", "Qualcomm", "ION Group", "Flex", "Colgate-Palmolive", "Accenture", "Aura Cloud", "Microsoft", "Novartis", "Electronic Arts (EA)"]:
-                            if re.search(r'\b' + re.escape(known) + r'\b', subj, re.I):
-                                comp = known
-                                break
+                        # Dynamic match against candidate's active companies from Notion if sender is generic
+                        if active_companies:
+                            for ac in active_companies:
+                                if len(ac) > 2 and re.search(r'\b' + re.escape(ac) + r'\b', subj, re.I):
+                                    comp = ac
+                                    break
 
                         role = clean_role_title(subj)
                         c_norm = re.sub(r'[^a-zA-Z0-9]', '', comp.lower())
@@ -159,6 +171,64 @@ class GmailClient:
                             'url': COMPANY_CAREER_URLS.get(c_norm, f"https://www.{c_norm}.com/careers")
                         }
 
+                    # Tier 2: Sarvam AI Resolver Fallback for edge cases (e.g. Valeo, weird portal subject lines)
+                    comp_name = parsed.get('company', '').strip()
+                    comp_low = comp_name.lower()
+                    is_suspicious_company = (
+                        not comp_name
+                        or len(comp_name) <= 2
+                        or comp_low in ['careers', 'career', 'jobs', 'application', 'candidate home', 'notifications', 'talent acquisition', 'recruitment', 'team', 'hr', 'workday', 'no-reply', 'noreply', 'applicant', 'recruiting']
+                        or any(ats in from_low for ats in ['recruiting', 'talent', 'careers', 'smartrecruiters', 'icims', 'ashby', 'greenhouse', 'lever', 'oraclecloud', 'successfactors', 'taleo'])
+                        or any(phrase in subj.lower() for phrase in ['acknowledgement', 'candidate home', 'application received', 'application update'])
+                    )
+
+                    if is_suspicious_company and self.sarvam.is_configured:
+                        ai_res = self.sarvam.resolve_application_details(subj, body_text, from_h)
+                        if ai_res.get('is_application') and ai_res.get('company'):
+                            parsed['company'] = clean_company_name(ai_res['company'])
+                            if ai_res.get('role'):
+                                parsed['role'] = clean_role_title(ai_res['role'])
+                            c_norm = re.sub(r'[^a-zA-Z0-9]', '', parsed['company'].lower())
+                            parsed['url'] = COMPANY_CAREER_URLS.get(c_norm, f"https://www.{c_norm}.com/careers")
+
+                    # Tier 2: Downstream Stage & Relay ATS Resolver (Ashby, Greenhouse, Lever, HackerRank, Codility)
+                    is_relay_sender = any(rd in from_low for rd in ['ashby', 'greenhouse', 'lever', 'smartrecruiters', 'hackerrank', 'codility', 'testgorilla', 'hirevue'])
+                    is_downstream_stage = stage in [
+                        HiringStage.STAGE_3_RECRUITER_SCREEN,
+                        HiringStage.STAGE_4_ASSESSMENT,
+                        HiringStage.STAGE_5_TECHNICAL_ROUND,
+                        HiringStage.STAGE_6_FINAL_ROUND,
+                        HiringStage.STAGE_7_OFFER
+                    ] or ('reject' in str(stage).lower() and is_relay_sender)
+
+                    if (is_relay_sender or is_downstream_stage) and self.sarvam.is_configured:
+                        stage_event = self.sarvam.resolve_stage_event(subj, body_text, from_h, d_str, active_companies)
+                        if stage_event.get('is_lifecycle_event'):
+                            if stage_event.get('company'):
+                                parsed['company'] = clean_company_name(stage_event['company'])
+                            if stage_event.get('role'):
+                                parsed['role'] = clean_role_title(stage_event['role'])
+                            if stage_event.get('deadline_date'):
+                                parsed['deadline'] = stage_event['deadline_date']
+                            elif stage_event.get('event_datetime'):
+                                parsed['deadline'] = stage_event['event_datetime'][:10]
+                            if stage_event.get('meeting_link'):
+                                parsed['meeting_link'] = stage_event['meeting_link']
+
+                            # Map stage if recognized
+                            st_map = {
+                                'assessment': HiringStage.STAGE_4_ASSESSMENT,
+                                'recruiter screen': HiringStage.STAGE_3_RECRUITER_SCREEN,
+                                'technical round': HiringStage.STAGE_5_TECHNICAL_ROUND,
+                                'final round': HiringStage.STAGE_6_FINAL_ROUND,
+                                'offer': HiringStage.STAGE_7_OFFER,
+                                'rejected': HiringStage.REJECTED_REVIEW_POOL,
+                                'under review': HiringStage.STAGE_2_UNDER_REVIEW
+                            }
+                            st_key = (stage_event.get('stage') or '').strip().lower()
+                            if st_key in st_map:
+                                stage = st_map[st_key]
+
                     comp_clean = (parsed.get('company') or '').strip()
                     comp_low = comp_clean.lower()
                     if (
@@ -166,7 +236,7 @@ class GmailClient:
                         or len(comp_clean) <= 1
                         or 'harsha' in comp_low
                         or 'injeti' in comp_low
-                        or any(d in comp_low for d in EXCLUDE_DOMAINS)
+                        or is_excluded_sender(comp_clean)
                         or any(re.search(pat, comp_low, re.I) for pat in EXCLUDE_PATTERNS)
                     ):
                         curr_headers = {}

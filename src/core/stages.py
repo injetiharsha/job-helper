@@ -55,7 +55,6 @@ STAGE_KEYWORDS = {
     HiringStage.STAGE_5_TECHNICAL_ROUND: [
         r'technical round', r'technical interview', r'live coding',
         r'system design interview', r'case study interview',
-        r'banao technologies.*interview', r'interview with humain',
         r'round 1 interview', r'round 2 interview'
     ],
     HiringStage.STAGE_4_ASSESSMENT: [
