@@ -3,6 +3,8 @@
 .env.*
 sync_state.json
 *.log
+*.wav
+*.mp3
 
 # Scratch and Temp files
 scratch/

@@ -2,10 +2,11 @@ import json
 import re
 import sys
 from datetime import datetime, date, timedelta
-from src.core.config import STATE_FILE, NO_RESPONSE_DAYS
+from src.core.config import STATE_FILE, NO_RESPONSE_DAYS, BASE_DIR
 from src.core.stages import HiringStage
 from src.services.gmail import GmailClient
 from src.services.notion import NotionClient
+from src.services.sarvam import SarvamClient
 
 # Safe encoding on Windows terminals
 if hasattr(sys.stdout, 'reconfigure'):
@@ -14,6 +15,7 @@ if hasattr(sys.stdout, 'reconfigure'):
 class JobHelperEngine:
     def __init__(self):
         self.notion = NotionClient()
+        self.sarvam = SarvamClient()
 
     def _load_state(self):
         if STATE_FILE.exists():
@@ -45,8 +47,12 @@ class JobHelperEngine:
 
         # Build index of existing applications by (company, role) to preserve multi-role applications
         existing_index = set()
+        active_companies = []
         for p in existing_pages:
-            c_norm = re.sub(r'[^a-zA-Z0-9]', '', p.get('company', '').lower())
+            c = p.get('company', '').strip()
+            if c:
+                active_companies.append(c)
+            c_norm = re.sub(r'[^a-zA-Z0-9]', '', c.lower())
             r_norm = re.sub(r'[^a-zA-Z0-9]', '', p.get('role', '').lower())[:15]
             if c_norm:
                 existing_index.add((c_norm, r_norm))
@@ -54,7 +60,7 @@ class JobHelperEngine:
         # 2. Fetch recruitment events from Gmail
         gmail = GmailClient()
         try:
-            new_applications, status_updates = gmail.fetch_recruitment_events(since_date)
+            new_applications, status_updates = gmail.fetch_recruitment_events(since_date, active_companies=active_companies)
         finally:
             gmail.close()
 
@@ -106,7 +112,10 @@ class JobHelperEngine:
                                 break
 
                         if current_status != stage_name or u_deadline:
-                            if self.notion.update_stage_status(p['id'], p.get('s_no'), p.get('company'), stage_name, u_date, u_deadline):
+                            meta = None
+                            if update.get('meeting_link'):
+                                meta = {'meeting_link': update['meeting_link']}
+                            if self.notion.update_stage_status(p['id'], p.get('s_no'), p.get('company'), stage_name, u_date, u_deadline, metadata=meta):
                                 p['updated_status'] = stage_name
                                 p['updated_date'] = u_date
                                 updated_count += 1
@@ -120,6 +129,18 @@ class JobHelperEngine:
         # 6. Save sync state
         today_str = date.today().strftime('%d-%b-%Y')
         self._save_state({"last_synced_date": today_str, "last_run_timestamp": datetime.now().isoformat()})
+
+        # 7. Generate Daily Audio Briefing via Sarvam Bulbul:v3
+        if self.sarvam.is_configured:
+            print("\n[*] Generating Audio Briefing via Sarvam Bulbul:v3...")
+            briefing_text = (
+                f"Hello Harsha. Job Helper sync completed. "
+                f"Found {created_count} new job applications, "
+                f"{updated_count} stage updates, and "
+                f"archived {stale_count} stale applications to No Response."
+            )
+            audio_out = BASE_DIR / "daily_briefing.wav"
+            self.sarvam.generate_audio_briefing(briefing_text, str(audio_out))
 
         print("\n==================================================")
         print("✅ Sync Cycle Completed Successfully!")
