@@ -9,8 +9,13 @@ on:
   schedule:
     - cron: '30 3 * * *'
 
-  # 3. Manual Run Button in GitHub Web / Mobile UI
+  # 3. Manual Run Button in GitHub Web / Mobile UI (Allows custom date range, default: 01-Oct-2026)
   workflow_dispatch:
+    inputs:
+      since:
+        description: 'Scan recruitment emails since date (e.g. 01-Oct-2026)'
+        required: false
+        default: '01-Oct-2026'
 
 jobs:
   sync:
@@ -35,5 +40,10 @@ jobs:
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+          SARVAM_API_KEY: ${{ secrets.SARVAM_API_KEY }}
         run: |
-          python run_sync.py
+          if [ -n "${{ github.event.inputs.since }}" ]; then
+            python run_sync.py --since "${{ github.event.inputs.since }}"
+          else
+            python run_sync.py
+          fi
