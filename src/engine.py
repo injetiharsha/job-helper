@@ -113,8 +113,11 @@ class JobHelperEngine:
 
                         if current_status != stage_name or u_deadline:
                             meta = None
-                            if update.get('meeting_link'):
-                                meta = {'meeting_link': update['meeting_link']}
+                            if update.get('meeting_link') or u_deadline:
+                                meta = {
+                                    'meeting_link': update.get('meeting_link'),
+                                    'calendar_synced': False
+                                }
                             if self.notion.update_stage_status(p['id'], p.get('s_no'), p.get('company'), stage_name, u_date, u_deadline, metadata=meta):
                                 p['updated_status'] = stage_name
                                 p['updated_date'] = u_date
